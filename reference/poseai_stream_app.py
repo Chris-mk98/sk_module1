@@ -5,7 +5,7 @@ import numpy as np
 import cv2
 
 # MediaPipe 모델 경로
-model_path = r'C:\Users\user\module1\reference\efficientdet_lite0.tflite'
+model_path =  r"C:\Users\user\sk_module1\model\efficientdet_lite0.tflite"
 
 # MediaPipe ObjectDetector 옵션 설정
 BaseOptions = mp.tasks.BaseOptions
@@ -24,36 +24,38 @@ MARGIN = 10  # 텍스트와 경계 상자의 여백
 ROW_SIZE = 10  # 텍스트의 줄 간격
 FONT_SIZE = 1
 FONT_THICKNESS = 1
-TEXT_COLOR = (255, 0, 0)  # 텍스트 색상 (빨간색)
+TEXT_COLOR_BLUE = (255, 0, 0) # 텍스트 색상 (파랑색)
+TEXT_COLOR_RED = (0, 0, 255)  # 텍스트 색상 (빨간색)
 
-def visualize(image, detection_result) -> np.ndarray:
-    """
-    입력 이미지에 탐지 결과(경계 상자와 라벨)를 그려주는 함수.
+# 위험 동물 리스트
+HARMFUL_ANIMALS= ['person', 'bear']
 
-    Args:
-        image: 입력 RGB 이미지.
-        detection_result: MediaPipe ObjectDetector의 탐지 결과.
 
-    Returns:
-        경계 상자와 라벨이 그려진 이미지.
-    """
+def visualize(image, detection_result, harmful_animals) -> np.ndarray:
     for detection in detection_result.detections:
-        # 경계 상자 그리기
         bbox = detection.bounding_box
-        start_point = int(bbox.origin_x), int(bbox.origin_y)  # 시작 좌표
-        end_point = int(bbox.origin_x + bbox.width), int(bbox.origin_y + bbox.height)  # 끝 좌표
-        cv2.rectangle(image, start_point, end_point, TEXT_COLOR, 3)  # 경계 상자 그리기
-
-        # 라벨과 점수 그리기
         category = detection.categories[0]
-        category_name = category.category_name  # 객체 이름
-        probability = round(category.score, 2)  # 탐지 점수
-        result_text = f"{category_name} ({probability})"  # 표시할 텍스트
-        text_location = (start_point[0] + MARGIN, start_point[1] - ROW_SIZE)  # 텍스트 위치
-        cv2.putText(image, result_text, text_location, cv2.FONT_HERSHEY_PLAIN, FONT_SIZE, TEXT_COLOR, FONT_THICKNESS)
+        category_name = category.category_name.strip()  # 공백 제거
 
-        # 감지된 객체 정보를 콘솔에 출력
-        print(f"Detected: {category_name} with score: {probability}")
+        # 경계 상자 좌표 설정
+        start_point = int(bbox.origin_x), int(bbox.origin_y)
+        end_point = int(bbox.origin_x + bbox.width), int(bbox.origin_y + bbox.height)
+
+        # 라벨과 점수 표시
+        probability = round(category.score, 2)
+        result_text = f"{category_name} ({probability})"
+        text_location = (start_point[0] + MARGIN, start_point[1] - ROW_SIZE)
+
+        # 위험 동물 여부 판단
+        if category_name.lower() in [animal.lower() for animal in harmful_animals]:  
+            cv2.rectangle(image, start_point, end_point, TEXT_COLOR_RED, 3)
+            result_text_color = TEXT_COLOR_RED
+        else:
+            cv2.rectangle(image, start_point, end_point, TEXT_COLOR_BLUE, 3)
+            result_text_color = TEXT_COLOR_BLUE
+            
+        cv2.putText(image, result_text, text_location, cv2.FONT_HERSHEY_PLAIN, FONT_SIZE, result_text_color, FONT_THICKNESS)
+        print(f"Detected: {category_name} with score: {probability}")  # 디버깅용 출력
 
     return image
 
@@ -81,7 +83,7 @@ with ObjectDetector.create_from_options(options) as detector:
             detection_result = detector.detect(mp_image)  # detect 메서드로 탐지 수행
 
             # 탐지 결과 시각화
-            image_with_detections = visualize(frame, detection_result)
+            image_with_detections = visualize(frame, detection_result, HARMFUL_ANIMALS)
 
             # 결과 출력
             cv2.imshow('MediaPipe Object Detection - Webcam', image_with_detections)  # 탐지된 결과 출력
