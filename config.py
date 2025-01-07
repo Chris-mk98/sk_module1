@@ -4,7 +4,7 @@ import os
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_DIR = os.path.join(CURRENT_DIR, "log")
 VIDEO_LOG_DIR = os.path.join(LOG_DIR, "recorded_video_log")
-REALTIME_LOG_DIR = os.path.join(LOG_DIR, "video_backup")
+REALTIME_LOG_DIR = os.path.join(LOG_DIR, "realtime_video_log")
 
 # 모델 경로 설정
 MODEL_PATH = r"C:\Users\user\sk_module1\model\efficientdet_lite0.tflite"
