@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 
 # MediaPipe 모델 경로
-model_path = r"C:\Users\user\sk_module1\reference\efficientdet_lite0.tflite"
+model_path = r"C:\Users\user\sk_module1\model\efficientdet_lite0.tflite"
 
 # MediaPipe ObjectDetector 옵션 설정
 BaseOptions = mp.tasks.BaseOptions
@@ -22,7 +22,7 @@ MARGIN = 10  # 텍스트와 경계 상자의 여백
 ROW_SIZE = 10  # 텍스트의 줄 간격
 FONT_SIZE = 1
 FONT_THICKNESS = 1
-TEXT_COLOR = (255, 0, 0)  # 텍스트 색상 (빨간색)
+TEXT_COLOR = (255, 0, 0)  # 텍스트 색상 (파란색)
 
 def visualize(image, detection_result) -> np.ndarray:
     """
@@ -56,7 +56,7 @@ def visualize(image, detection_result) -> np.ndarray:
     return image
 
 # 비디오 파일 로드
-video_capture = cv2.VideoCapture('C:/Users/user/sk_module1/reference/test1.mp4') # 입력 비디오 파일 경로
+video_capture = cv2.VideoCapture(r'C:\Users\user\sk_module1\resource\video\test.mp4') # 입력 비디오 파일 경로
 fps = video_capture.get(cv2.CAP_PROP_FPS)  # 비디오의 프레임 속도(FPS) 가져오기
 if not video_capture.isOpened():
     print("비디오를 열 수 없습니다. 경로를 확인하세요.")  # 비디오가 열리지 않을 경우 메시지 출력
