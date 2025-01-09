@@ -64,6 +64,20 @@ class ObjectDetectorApp:
         )
         self.detector = mp.tasks.vision.ObjectDetector.create_from_options(options)
 
+        second_base_options = mp.tasks.BaseOptions(model_asset_path=MODEL2_PATH)
+        second_options = mp.tasks.vision.ObjectDetectorOptions(
+            base_options=second_base_options,
+            max_results=5,
+            running_mode=mp.tasks.vision.RunningMode.IMAGE
+        )
+        self.human_detector = mp.tasks.vision.ObjectDetector.create_from_options(second_options)
+        
+        # 이미지 분류기 초기화
+        classifier_options = mp.tasks.vision.ImageClassifierOptions(
+            base_options=mp.tasks.BaseOptions(model_asset_path=CLASSIFIER_MODEL_PATH)
+        )
+        self.classifier = mp.tasks.vision.ImageClassifier.create_from_options(classifier_options)
+
     def setup_video_capture(self):
         """비디오 캡처 초기화"""
         self.cap = cv2.VideoCapture(INPUT_MODE)
@@ -103,10 +117,14 @@ class ObjectDetectorApp:
         self.start_time = time.time()
 
     def visualize(self, image, detection_result):
-        for detection in detection_result.detections:
+        for detection in detection_result:
             bbox = detection.bounding_box
             category = detection.categories[0]
             category_name = category.category_name.strip()
+            name_to_korean = {'scrofa': 'boar', 'inermis': 'k_deer', 'thibetanus': 'bear', 'boar': 'boar',
+                            'pygargus': 'k_deer', 'procyonoides': 'raccoon', 'sibirica': 'weasel'}
+            # 영단어를 한국어로 변환
+            display_name = name_to_korean.get(category_name.lower(), category_name)
             probability = round(category.score, 2)
 
             if probability < PROBABILITY_THRESHOLD:
@@ -125,13 +143,46 @@ class ObjectDetectorApp:
                 self.logger.log_detection(category_name, timestamp, probability)
 
             cv2.rectangle(image, start_point, end_point, color, 3)
-            result_text = f"{category_name} ({probability})"
+            result_text = f"{display_name} ({probability})"
+            print('Detected : ', result_text)
             cv2.putText(image, result_text, (start_point[0] + MARGIN, start_point[1] - ROW_SIZE), cv2.FONT_HERSHEY_PLAIN, FONT_SIZE, color, FONT_THICKNESS)
 
         if INPUT_MODE == 0:
             cv2.putText(image, time.strftime("%Y-%m-%d %H:%M:%S"), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         return image
+    
+    def merge_detections(self, detections1, detections2):
+        """두 모델의 탐지 결과를 병합하여 중복된 탐지를 제거하고 신뢰도 높은 결과만 선택"""
+        merged_detections = []
+        iou_threshold = 0.5  # 중복 탐지 여부를 결정할 IOU 임계값
+
+        # 두 결과 리스트 병합 및 중복 제거
+        for det1 in detections1:
+            best_detection = det1
+            for det2 in detections2:
+                iou = self.calculate_iou(det1.bounding_box, det2.bounding_box)
+                if iou > iou_threshold:
+                    # 동일한 객체로 판단되면 신뢰도 높은 결과 선택
+                    best_detection = det1 if det1.categories[0].score > det2.categories[0].score else det2
+            merged_detections.append(best_detection)
+
+        return merged_detections
+
+    def calculate_iou(self, bbox1, bbox2):
+        """두 바운딩 박스 간의 IOU(Intersection Over Union) 계산"""
+        x1 = max(bbox1.origin_x, bbox2.origin_x)
+        y1 = max(bbox1.origin_y, bbox2.origin_y)
+        x2 = min(bbox1.origin_x + bbox1.width, bbox2.origin_x + bbox2.width)
+        y2 = min(bbox1.origin_y + bbox1.height, bbox2.origin_y + bbox2.height)
+
+        intersection = max(0, x2 - x1) * max(0, y2 - y1)
+        area1 = bbox1.width * bbox1.height
+        area2 = bbox2.width * bbox2.height
+        union = area1 + area2 - intersection
+
+        return intersection / union if union > 0 else 0    
+    
 
     def run(self):
         try:
@@ -148,10 +199,24 @@ class ObjectDetectorApp:
                 # 프레임 처리
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
-                detection_result = self.detector.detect(mp_image)
-                
+
+                # 멧돼지 탐지 (detector)
+                wild_boar_detections = [
+                    detection for detection in self.detector.detect(mp_image).detections 
+                    if detection.categories[0].category_name.lower() in [animal.lower() for animal in HARMFUL_ANIMALS]
+                ]
+
+                # 사람 탐지 (human_detector)
+                person_detections = [
+                    detection for detection in self.human_detector.detect(mp_image).detections 
+                    if detection.categories[0].category_name.lower() == "person"
+                ]
+
+                # 동일 객체에 대해 더 높은 점수를 가진 탐지만 유지
+                merged_detections = self.merge_detections(wild_boar_detections, person_detections)
+
                 # 결과 시각화
-                frame = self.visualize(frame, detection_result)
+                frame = self.visualize(frame, merged_detections)             
 
                 # 실시간 녹화 처리
                 if INPUT_MODE == 0:
