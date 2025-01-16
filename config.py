@@ -7,8 +7,8 @@ VIDEO_LOG_DIR = os.path.join(LOG_DIR, "recorded_video_log")
 REALTIME_LOG_DIR = os.path.join(LOG_DIR, "realtime_video_log")
 
 # 모델 경로 설정
-MODEL_PATH = r"C:\Users\user\sk_module1\model\fixed_animal_model.tflite"
-# MODEL_PATH = r"C:\Users\user\sk_module1\model\boar_model.tflite"
+# MODEL_PATH = r"C:\Users\user\sk_module1\model\fixed_animal_model.tflite"
+MODEL_PATH = r"C:\Users\user\sk_module1\model\boar_model.tflite"
 
 MODEL2_PATH = r"C:\Users\user\sk_module1\model\efficientdet_lite0.tflite"
 
